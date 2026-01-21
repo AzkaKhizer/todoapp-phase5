@@ -21,14 +21,33 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           {user && (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-medium">{user.email}</p>
+            <>
+              <nav className="flex items-center gap-1">
+                <Link
+                  href="/dashboard"
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-all duration-200"
+                >
+                  Tasks
+                </Link>
+                <Link
+                  href="/chat"
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-all duration-200 flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  Chat
+                </Link>
+              </nav>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:block text-right">
+                  <p className="text-sm font-medium">{user.email}</p>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--accent-primary)] font-medium text-sm">
+                  {user.email.charAt(0).toUpperCase()}
+                </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--accent-primary)] font-medium text-sm">
-                {user.email.charAt(0).toUpperCase()}
-              </div>
-            </div>
+            </>
           )}
           <button
             onClick={logout}

@@ -12,7 +12,10 @@ from app.database import create_tables
 from app.exceptions import TodoException
 # Import models before create_tables() to register them with SQLModel.metadata
 from app.models.task import Task  # noqa: F401
+from app.models.conversation import Conversation  # noqa: F401
+from app.models.message import Message  # noqa: F401
 from app.routers.auth import router as auth_router
+from app.routers.chat import router as chat_router
 from app.routers.tasks import router as tasks_router
 
 settings = get_settings()
@@ -69,4 +72,5 @@ async def health_check():
 
 # Include routers
 app.include_router(auth_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
 app.include_router(tasks_router, prefix="/api")
