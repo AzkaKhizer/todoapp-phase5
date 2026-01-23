@@ -192,12 +192,21 @@ async def delete_conversation(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a conversation and all its messages."""
-    deleted = await chat_service.delete_conversation(
-        session, conversation_id, user_id
-    )
+    try:
+        deleted = await chat_service.delete_conversation(
+            session, conversation_id, user_id
+        )
 
-    if not deleted:
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE ERROR] {type(e).__name__}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Delete failed: {str(e)}",
         )

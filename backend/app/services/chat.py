@@ -77,22 +77,29 @@ async def delete_conversation(
     user_id: str,
 ) -> bool:
     """Delete a conversation and its messages."""
+    # Verify ownership first
     conversation = await get_conversation(session, conversation_id, user_id)
     if not conversation:
         return False
 
-    # Delete all messages in the conversation
-    delete_messages_query = select(Message).where(
-        Message.conversation_id == conversation_id
-    )
-    result = await session.execute(delete_messages_query)
+    # Get all messages for this conversation
+    messages_query = select(Message).where(Message.conversation_id == conversation_id)
+    result = await session.execute(messages_query)
     messages = result.scalars().all()
-    for msg in messages:
-        await session.delete(msg)
 
-    # Delete the conversation
+    # Delete each message
+    for message in messages:
+        await session.delete(message)
+
+    # Flush to execute message deletes
+    await session.flush()
+
+    # Now delete the conversation
     await session.delete(conversation)
+
+    # Commit everything
     await session.commit()
+
     return True
 
 
