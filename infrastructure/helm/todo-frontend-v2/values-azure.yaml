@@ -1,0 +1,127 @@
+# =============================================================================
+# Azure-specific values for todo-frontend-v2
+# =============================================================================
+# Override these values when deploying to Azure AKS:
+#   helm upgrade --install todo-frontend ./infrastructure/helm/todo-frontend-v2 \
+#     -f ./infrastructure/helm/todo-frontend-v2/values-azure.yaml \
+#     --namespace todo-app
+# =============================================================================
+
+replicaCount: 3
+
+image:
+  # Replace with your ACR login server
+  repository: todoappdevacr.azurecr.io/todo-frontend
+  pullPolicy: Always
+  tag: "latest"
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "todo-frontend"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # Next.js needs write access
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 3000
+
+# Ingress configuration for Azure Application Gateway or NGINX
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: todoapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: todo-frontend-tls
+      hosts:
+        - todoapp.example.com
+
+# Production-level resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Node affinity for user node pool
+nodeSelector:
+  nodepool-type: user
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Anti-affinity to spread pods across nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: todo-frontend
+          topologyKey: kubernetes.io/hostname
+
+# Environment variables
+env:
+  NEXT_PUBLIC_API_URL: "https://api.todoapp.example.com"
+  NEXT_PUBLIC_WS_URL: "wss://api.todoapp.example.com"
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30

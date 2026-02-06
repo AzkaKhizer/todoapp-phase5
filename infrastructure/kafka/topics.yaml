@@ -1,0 +1,91 @@
+# Kafka Topic Definitions for Todo Application
+# These topics follow CloudEvents specification for event-driven architecture
+#
+# Apply with: kubectl apply -f topics.yaml
+# Or use Kafka CLI: kafka-topics.sh --create --topic <name> --partitions <p> --replication-factor <r>
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: task.events
+  namespace: default
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"  # 7 days
+    cleanup.policy: "delete"
+    max.message.bytes: "1048576"  # 1MB
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: reminder.due
+  namespace: default
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "86400000"  # 1 day
+    cleanup.policy: "delete"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: notification.send
+  namespace: default
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "86400000"  # 1 day
+    cleanup.policy: "delete"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sync.events
+  namespace: default
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "3600000"  # 1 hour (real-time sync, short retention)
+    cleanup.policy: "delete"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: activity.log
+  namespace: default
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "2592000000"  # 30 days
+    cleanup.policy: "delete"
+---
+# Dead Letter Queue for failed messages
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: dlq.notifications
+  namespace: default
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: "604800000"  # 7 days
+    cleanup.policy: "delete"

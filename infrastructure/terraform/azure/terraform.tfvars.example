@@ -1,0 +1,69 @@
+# =============================================================================
+# Example Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# Never commit terraform.tfvars to source control!
+# =============================================================================
+
+# General Settings
+project_name = "todoapp"
+environment  = "dev"
+location     = "eastus"
+app_namespace = "todo-app"
+
+# AKS Settings
+kubernetes_version    = "1.28"
+aks_system_node_count = 2
+aks_system_node_min   = 2
+aks_system_node_max   = 5
+aks_system_node_size  = "Standard_DS2_v2"
+aks_user_node_count   = 2
+aks_user_node_min     = 1
+aks_user_node_max     = 10
+aks_user_node_size    = "Standard_DS2_v2"
+
+# Azure AD group IDs for AKS admin access (optional)
+aks_admin_group_ids = []
+
+# Dapr Settings
+dapr_version = "1.12.0"
+
+# Event Hubs Settings
+eventhub_sku             = "Standard"
+eventhub_capacity        = 1
+eventhub_max_throughput  = 4
+eventhub_partition_count = 4
+eventhub_message_retention = 7
+
+# Redis Settings
+redis_sku      = "Standard"
+redis_family   = "C"
+redis_capacity = 1
+
+# ACR Settings
+acr_sku = "Standard"
+enable_acr_tasks = false
+
+# PostgreSQL Settings
+postgres_version               = "15"
+postgres_sku                   = "B_Standard_B1ms"
+postgres_storage_mb            = 32768
+postgres_admin_username        = "pgadmin"
+postgres_database_name         = "todoapp"
+postgres_backup_retention_days = 7
+postgres_ha_enabled            = false
+
+# =============================================================================
+# Sensitive Variables (set via environment or prompt)
+# =============================================================================
+# Set these via environment variables or pass at apply time:
+#
+# export TF_VAR_postgres_admin_password="your-secure-password"
+# export TF_VAR_better_auth_secret="your-jwt-secret"
+#
+# Or pass at apply time:
+# terraform apply -var="postgres_admin_password=xxx" -var="better_auth_secret=xxx"
+# =============================================================================
+
+# postgres_admin_password = "CHANGE_ME"
+# better_auth_secret = "CHANGE_ME"

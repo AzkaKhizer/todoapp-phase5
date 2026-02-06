@@ -10,6 +10,19 @@ from sqlmodel import SQLModel
 
 from app.config import get_settings
 
+# Import all models to ensure they are registered with SQLModel metadata
+# This is required for create_tables() to create all tables
+from app.models import (  # noqa: F401
+    ActivityLogEntry,
+    Conversation,
+    Message,
+    RecurrencePattern,
+    Reminder,
+    Tag,
+    Task,
+    TaskTag,
+)
+
 settings = get_settings()
 
 # Create SSL context for Neon PostgreSQL

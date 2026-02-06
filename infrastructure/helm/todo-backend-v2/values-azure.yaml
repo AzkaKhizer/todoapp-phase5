@@ -1,0 +1,159 @@
+# =============================================================================
+# Azure-specific values for todo-backend-v2
+# =============================================================================
+# Override these values when deploying to Azure AKS:
+#   helm upgrade --install todo-backend ./infrastructure/helm/todo-backend-v2 \
+#     -f ./infrastructure/helm/todo-backend-v2/values-azure.yaml \
+#     --namespace todo-app
+# =============================================================================
+
+replicaCount: 3
+
+image:
+  # Replace with your ACR login server
+  repository: todoappdevacr.azurecr.io/todo-backend
+  pullPolicy: Always
+  tag: "latest"
+
+# Dapr configuration for Azure
+dapr:
+  enabled: true
+  appId: "todo-backend"
+  appPort: 8000
+  appProtocol: "http"
+  enableApiLogging: true
+  logLevel: "info"
+  config: "todo-config"
+  # Azure-specific components
+  components:
+    pubsub: "kafka-pubsub"          # Uses Event Hubs
+    statestore: "statestore"        # Uses Azure Redis
+
+# Service Account with Azure Workload Identity
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id: "${AZURE_CLIENT_ID}"
+  name: "todo-backend"
+
+# Pod annotations for Workload Identity
+podAnnotations:
+  azure.workload.identity/use: "true"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8000
+
+# Ingress configuration for Azure Application Gateway or NGINX
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: api.todoapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: todo-backend-tls
+      hosts:
+        - api.todoapp.example.com
+
+# Production-level resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node affinity for user node pool
+nodeSelector:
+  nodepool-type: user
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Anti-affinity to spread pods across nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: todo-backend
+          topologyKey: kubernetes.io/hostname
+
+# Environment variables (sensitive values from secrets)
+env:
+  # Database URL from Azure PostgreSQL (from secret)
+  DATABASE_URL: ""
+  # Better Auth configuration
+  BETTER_AUTH_SECRET: ""
+  BETTER_AUTH_URL: "https://todoapp.example.com"
+  # Environment
+  ENVIRONMENT: "production"
+  # Dapr configuration
+  DAPR_HTTP_PORT: "3500"
+  DAPR_GRPC_PORT: "50001"
+
+# Reference Kubernetes secrets
+envFromSecrets:
+  - name: todo-app-secrets
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30

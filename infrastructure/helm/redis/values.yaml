@@ -1,0 +1,68 @@
+# Redis Helm values for local development
+# Using Bitnami Redis chart: https://github.com/bitnami/charts/tree/main/bitnami/redis
+
+# Architecture: standalone for local, replication for production
+architecture: standalone
+
+# Disable authentication for local development
+auth:
+  enabled: false
+  # For production, enable auth and set password:
+  # enabled: true
+  # password: "your-redis-password"
+
+# Master configuration
+master:
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Persistence configuration
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""  # Use default storage class
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 6379
+
+# Replica configuration (only for replication architecture)
+replica:
+  replicaCount: 0  # Disabled for standalone
+
+# Sentinel configuration (disabled for standalone)
+sentinel:
+  enabled: false
+
+# Metrics configuration
+metrics:
+  enabled: false
+  # For production, enable metrics:
+  # enabled: true
+  # serviceMonitor:
+  #   enabled: true
+
+# Network policy
+networkPolicy:
+  enabled: false
+
+# Pod disruption budget
+pdb:
+  create: false
+
+# Common configuration
+commonConfiguration: |-
+  # Max memory (matches container limit)
+  maxmemory 400mb
+  # Eviction policy
+  maxmemory-policy allkeys-lru
+  # Disable persistence for local dev (enable for production)
+  appendonly no
+  save ""

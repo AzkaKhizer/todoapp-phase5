@@ -1,0 +1,101 @@
+# Default values for todo-backend-v2
+
+replicaCount: 2
+
+image:
+  repository: todo-backend
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Dapr configuration
+dapr:
+  enabled: true
+  appId: "todo-backend"
+  appPort: 8000
+  appProtocol: "http"
+  enableApiLogging: true
+  logLevel: "info"
+  config: "todo-config"
+  # Components to use
+  components:
+    pubsub: "pubsub-kafka"
+    statestore: "statestore-redis"
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: api.todo.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Environment variables
+env:
+  # Database configuration
+  DATABASE_URL: ""
+  # Better Auth configuration
+  BETTER_AUTH_SECRET: ""
+  BETTER_AUTH_URL: "http://todo-frontend:3000"
+  # Environment
+  ENVIRONMENT: "development"
+
+# Secrets reference (Kubernetes secrets)
+envFromSecrets:
+  - name: todo-secrets
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5

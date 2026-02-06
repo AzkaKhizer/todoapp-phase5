@@ -14,9 +14,19 @@ from app.exceptions import TodoException
 from app.models.task import Task  # noqa: F401
 from app.models.conversation import Conversation  # noqa: F401
 from app.models.message import Message  # noqa: F401
+from app.models.tag import Tag  # noqa: F401
+from app.models.task_tag import TaskTag  # noqa: F401
+from app.models.recurrence import RecurrencePattern  # noqa: F401
+from app.models.reminder import Reminder  # noqa: F401
+from app.models.activity_log import ActivityLogEntry  # noqa: F401
+from app.events.handlers import router as dapr_router
+from app.routers.activity import router as activity_router
 from app.routers.auth import router as auth_router
 from app.routers.chat import router as chat_router
+from app.routers.reminders import router as reminders_router
+from app.routers.tags import router as tags_router
 from app.routers.tasks import router as tasks_router
+from app.routers.websocket import router as websocket_router
 
 settings = get_settings()
 
@@ -71,6 +81,15 @@ async def health_check():
 
 
 # Include routers
+app.include_router(activity_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
+app.include_router(reminders_router)  # Already has /api prefix
+app.include_router(tags_router, prefix="/api")
 app.include_router(tasks_router, prefix="/api")
+
+# WebSocket router for real-time sync
+app.include_router(websocket_router)
+
+# Dapr event handlers (bindings and subscriptions)
+app.include_router(dapr_router)

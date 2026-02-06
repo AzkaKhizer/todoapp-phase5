@@ -1,0 +1,59 @@
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: todo-config
+  namespace: default
+spec:
+  # Enable distributed tracing with Zipkin
+  tracing:
+    samplingRate: "1"
+    zipkin:
+      endpointAddress: "http://zipkin.default.svc.cluster.local:9411/api/v2/spans"
+
+  # Enable mTLS for service-to-service communication
+  mtls:
+    enabled: true
+    workloadCertTTL: "24h"
+    allowedClockSkew: "15m"
+
+  # API access control
+  accessControl:
+    defaultAction: allow
+    trustDomain: "public"
+
+  # Metrics configuration
+  metrics:
+    enabled: true
+    http:
+      port: 9090
+
+  # Feature flags
+  features:
+    - name: "ServiceInvocation.Streaming"
+      enabled: true
+
+  # Logging
+  logging:
+    apiLogging:
+      enabled: true
+      obfuscateURLs: false
+
+  # App health checks
+  appHttpPipeline:
+    handlers:
+      - name: ratelimit
+        type: middleware.http.ratelimit
+        version: v1
+---
+# Rate limiting middleware
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: ratelimit
+  namespace: default
+spec:
+  type: middleware.http.ratelimit
+  version: v1
+  metadata:
+    - name: maxRequestsPerSecond
+      value: "100"

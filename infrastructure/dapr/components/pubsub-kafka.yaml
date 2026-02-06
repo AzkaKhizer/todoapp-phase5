@@ -1,0 +1,29 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-kafka
+  namespace: default
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    # Kafka broker addresses (Redpanda or Bitnami Kafka)
+    - name: brokers
+      value: "kafka.default.svc.cluster.local:9092"
+    # Consumer group for this application
+    - name: consumerGroup
+      value: "todo-backend"
+    # Auth mode (none for local, SASL for cloud)
+    - name: authType
+      value: "none"
+    # Initial offset for new consumers
+    - name: initialOffset
+      value: "oldest"
+    # Max message bytes
+    - name: maxMessageBytes
+      value: "1048576"
+    # Disable TLS for local development
+    - name: disableTls
+      value: "true"
+scopes:
+  - todo-backend

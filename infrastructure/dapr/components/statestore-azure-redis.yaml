@@ -1,0 +1,103 @@
+# =============================================================================
+# Dapr State Store Component - Azure Cache for Redis
+# =============================================================================
+# This component configures Dapr to use Azure Cache for Redis as the state store.
+# Used for:
+# - Actor state persistence
+# - Workflow state
+# - Distributed caching
+#
+# Prerequisites:
+# - Azure Cache for Redis created
+# - Connection details stored in Kubernetes secret or Key Vault
+#
+# Usage: Deploy to Kubernetes with: kubectl apply -f statestore-azure-redis.yaml
+# =============================================================================
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+  namespace: todo-app
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    # Redis host (Azure Redis hostname)
+    - name: redisHost
+      value: "${REDIS_HOST}:6380"
+
+    # Redis password from Kubernetes secret
+    - name: redisPassword
+      secretKeyRef:
+        name: todo-app-secrets
+        key: REDIS_PASSWORD
+
+    # Enable TLS (required for Azure Redis)
+    - name: enableTLS
+      value: "true"
+
+    # Fail fast if Redis is unavailable
+    - name: failover
+      value: "true"
+
+    # Connection pool settings
+    - name: maxRetries
+      value: "5"
+
+    - name: maxRetryBackoff
+      value: "2s"
+
+    # Key prefix for this application
+    - name: keyPrefix
+      value: "todo-app"
+
+    # Actor state store configuration
+    - name: actorStateStore
+      value: "true"
+
+    # Transaction support
+    - name: queryIndexes
+      value: |
+        [
+          {"name": "user_id", "type": "string"},
+          {"name": "entity_type", "type": "string"}
+        ]
+
+# Secret store reference
+auth:
+  secretStore: kubernetes
+
+# Scopes limit which applications can use this component
+scopes:
+  - todo-backend
+
+---
+# =============================================================================
+# State Store with Azure Key Vault (Alternative)
+# =============================================================================
+# Uncomment this section if using Azure Key Vault for secrets
+
+# apiVersion: dapr.io/v1alpha1
+# kind: Component
+# metadata:
+#   name: statestore
+#   namespace: todo-app
+# spec:
+#   type: state.redis
+#   version: v1
+#   metadata:
+#     - name: redisHost
+#       value: "${REDIS_HOST}:6380"
+#     - name: redisPassword
+#       secretKeyRef:
+#         name: redis-password
+#         key: redis-password
+#     - name: enableTLS
+#       value: "true"
+#     - name: actorStateStore
+#       value: "true"
+# auth:
+#   secretStore: azure-keyvault
+# scopes:
+#   - todo-backend

@@ -1,0 +1,23 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-redis
+  namespace: default
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    # Redis host
+    - name: redisHost
+      value: "redis-master.default.svc.cluster.local:6379"
+    # Redis password (empty for local, use secretKeyRef for production)
+    - name: redisPassword
+      value: ""
+    # Enable transactions for consistency
+    - name: enableTLS
+      value: "false"
+    # State store features
+    - name: actorStateStore
+      value: "true"
+scopes:
+  - todo-backend

@@ -3,23 +3,45 @@
 import asyncio
 import uuid
 from collections.abc import AsyncGenerator, Generator
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
+from app.config import get_settings
 from app.database import get_session
 from app.main import app
 from app.models.task import Task
-from app.models.user import User
-from app.services.auth import create_access_token, hash_password
 
 # Test database URL - use SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+settings = get_settings()
+
+
+def create_test_token(user_id: str, email: str) -> str:
+    """Create a JWT token for testing (mimics Better Auth tokens)."""
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+    }
+    return jwt.encode(payload, settings.better_auth_secret, algorithm="HS256")
+
+
+@dataclass
+class MockUser:
+    """Mock user for testing (Better Auth manages real users)."""
+    id: str
+    email: str
 
 
 @pytest.fixture(scope="session")
@@ -77,23 +99,18 @@ async def client(async_session: AsyncSession) -> AsyncGenerator[AsyncClient, Non
 
 
 @pytest_asyncio.fixture
-async def test_user(async_session: AsyncSession) -> User:
-    """Create a test user."""
-    user = User(
-        id=uuid.uuid4(),
+async def test_user() -> MockUser:
+    """Create a mock test user (Better Auth manages real users)."""
+    return MockUser(
+        id=str(uuid.uuid4()),
         email="test@example.com",
-        password_hash=hash_password("testpass123"),
     )
-    async_session.add(user)
-    await async_session.commit()
-    await async_session.refresh(user)
-    return user
 
 
 @pytest_asyncio.fixture
-async def test_user_token(test_user: User) -> str:
+async def test_user_token(test_user: MockUser) -> str:
     """Get auth token for test user."""
-    return create_access_token(test_user.id, test_user.email)
+    return create_test_token(test_user.id, test_user.email)
 
 
 @pytest_asyncio.fixture
@@ -103,23 +120,18 @@ async def auth_headers(test_user_token: str) -> dict[str, str]:
 
 
 @pytest_asyncio.fixture
-async def other_user(async_session: AsyncSession) -> User:
-    """Create another test user for isolation tests."""
-    user = User(
-        id=uuid.uuid4(),
+async def other_user() -> MockUser:
+    """Create another mock test user for isolation tests."""
+    return MockUser(
+        id=str(uuid.uuid4()),
         email="other@example.com",
-        password_hash=hash_password("otherpass123"),
     )
-    async_session.add(user)
-    await async_session.commit()
-    await async_session.refresh(user)
-    return user
 
 
 @pytest_asyncio.fixture
-async def other_user_token(other_user: User) -> str:
+async def other_user_token(other_user: MockUser) -> str:
     """Get auth token for other user."""
-    return create_access_token(other_user.id, other_user.email)
+    return create_test_token(other_user.id, other_user.email)
 
 
 @pytest_asyncio.fixture
@@ -129,7 +141,7 @@ async def other_auth_headers(other_user_token: str) -> dict[str, str]:
 
 
 @pytest_asyncio.fixture
-async def test_task(async_session: AsyncSession, test_user: User) -> Task:
+async def test_task(async_session: AsyncSession, test_user: MockUser) -> Task:
     """Create a test task for the test user."""
     task = Task(
         id=uuid.uuid4(),
@@ -145,7 +157,7 @@ async def test_task(async_session: AsyncSession, test_user: User) -> Task:
 
 
 @pytest_asyncio.fixture
-async def completed_task(async_session: AsyncSession, test_user: User) -> Task:
+async def completed_task(async_session: AsyncSession, test_user: MockUser) -> Task:
     """Create a completed test task for the test user."""
     task = Task(
         id=uuid.uuid4(),
@@ -161,7 +173,7 @@ async def completed_task(async_session: AsyncSession, test_user: User) -> Task:
 
 
 @pytest_asyncio.fixture
-async def other_user_task(async_session: AsyncSession, other_user: User) -> Task:
+async def other_user_task(async_session: AsyncSession, other_user: MockUser) -> Task:
     """Create a task for the other user (for isolation tests)."""
     task = Task(
         id=uuid.uuid4(),

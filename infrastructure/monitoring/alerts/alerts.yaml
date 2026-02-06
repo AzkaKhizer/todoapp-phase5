@@ -1,0 +1,230 @@
+# =============================================================================
+# Prometheus Alerting Rules for Todo Application
+# =============================================================================
+# Deploy with: kubectl apply -f alerts.yaml
+# =============================================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: todo-app-alerts
+  namespace: monitoring
+  labels:
+    app: todo-app
+    release: prometheus
+spec:
+  groups:
+    # =========================================================================
+    # Availability Alerts
+    # =========================================================================
+    - name: todo-app.availability
+      rules:
+        - alert: TodoBackendDown
+          expr: up{job="todo-backend"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            service: todo-backend
+          annotations:
+            summary: "Todo Backend is down"
+            description: "Todo Backend has been down for more than 1 minute."
+            runbook_url: "https://wiki.example.com/runbooks/todo-backend-down"
+
+        - alert: TodoFrontendDown
+          expr: up{job="todo-frontend"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            service: todo-frontend
+          annotations:
+            summary: "Todo Frontend is down"
+            description: "Todo Frontend has been down for more than 1 minute."
+
+        - alert: HighPodRestartRate
+          expr: increase(kube_pod_container_status_restarts_total{namespace="todo-app"}[1h]) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High pod restart rate in todo-app namespace"
+            description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour."
+
+    # =========================================================================
+    # Latency Alerts
+    # =========================================================================
+    - name: todo-app.latency
+      rules:
+        - alert: HighAPILatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(todo_http_request_duration_seconds_bucket{job="todo-backend"}[5m])) by (le)) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            service: todo-backend
+          annotations:
+            summary: "High API latency detected"
+            description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 500ms)"
+
+        - alert: CriticalAPILatency
+          expr: |
+            histogram_quantile(0.99, sum(rate(todo_http_request_duration_seconds_bucket{job="todo-backend"}[5m])) by (le)) > 2
+          for: 5m
+          labels:
+            severity: critical
+            service: todo-backend
+          annotations:
+            summary: "Critical API latency detected"
+            description: "P99 latency is {{ $value | humanizeDuration }} (threshold: 2s)"
+
+        - alert: SlowDatabaseQueries
+          expr: |
+            histogram_quantile(0.95, sum(rate(todo_db_query_seconds_bucket[5m])) by (le, operation)) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            service: todo-backend
+          annotations:
+            summary: "Slow database queries detected"
+            description: "P95 query time for {{ $labels.operation }} is {{ $value | humanizeDuration }}"
+
+    # =========================================================================
+    # Error Rate Alerts
+    # =========================================================================
+    - name: todo-app.errors
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(todo_http_requests_total{job="todo-backend",status=~"5.."}[5m]))
+            /
+            sum(rate(todo_http_requests_total{job="todo-backend"}[5m])) > 0.01
+          for: 5m
+          labels:
+            severity: warning
+            service: todo-backend
+          annotations:
+            summary: "High error rate detected"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+
+        - alert: CriticalErrorRate
+          expr: |
+            sum(rate(todo_http_requests_total{job="todo-backend",status=~"5.."}[5m]))
+            /
+            sum(rate(todo_http_requests_total{job="todo-backend"}[5m])) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            service: todo-backend
+          annotations:
+            summary: "Critical error rate detected"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+        - alert: ReminderDeliveryFailures
+          expr: |
+            increase(todo_reminders_failed_total[1h]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            service: todo-backend
+          annotations:
+            summary: "High reminder delivery failure rate"
+            description: "{{ $value }} reminders failed to deliver in the last hour"
+
+    # =========================================================================
+    # Kafka Alerts
+    # =========================================================================
+    - name: todo-app.kafka
+      rules:
+        - alert: HighKafkaConsumerLag
+          expr: |
+            sum(todo_kafka_consumer_lag) by (topic, consumer_group) > 1000
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High Kafka consumer lag"
+            description: "Consumer group {{ $labels.consumer_group }} has lag of {{ $value }} on topic {{ $labels.topic }}"
+
+        - alert: CriticalKafkaConsumerLag
+          expr: |
+            sum(todo_kafka_consumer_lag) by (topic, consumer_group) > 10000
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical Kafka consumer lag"
+            description: "Consumer group {{ $labels.consumer_group }} has lag of {{ $value }} on topic {{ $labels.topic }}"
+
+        - alert: KafkaMessageProcessingSlow
+          expr: |
+            histogram_quantile(0.95, sum(rate(todo_kafka_message_processing_seconds_bucket[5m])) by (le, topic)) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Slow Kafka message processing"
+            description: "P95 processing time for {{ $labels.topic }} is {{ $value | humanizeDuration }}"
+
+    # =========================================================================
+    # Resource Alerts
+    # =========================================================================
+    - name: todo-app.resources
+      rules:
+        - alert: HighMemoryUsage
+          expr: |
+            container_memory_working_set_bytes{namespace="todo-app",container!=""}
+            /
+            container_spec_memory_limit_bytes{namespace="todo-app",container!=""} > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage"
+            description: "Container {{ $labels.container }} is using {{ $value | humanizePercentage }} of memory limit"
+
+        - alert: HighCPUUsage
+          expr: |
+            sum(rate(container_cpu_usage_seconds_total{namespace="todo-app",container!=""}[5m])) by (pod, container)
+            /
+            sum(container_spec_cpu_quota{namespace="todo-app",container!=""}/container_spec_cpu_period{namespace="todo-app",container!=""}) by (pod, container) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage"
+            description: "Container {{ $labels.container }} is using {{ $value | humanizePercentage }} of CPU limit"
+
+        - alert: PodNotReady
+          expr: |
+            kube_pod_status_ready{namespace="todo-app",condition="true"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod not ready"
+            description: "Pod {{ $labels.pod }} has been not ready for more than 5 minutes"
+
+    # =========================================================================
+    # Business Alerts
+    # =========================================================================
+    - name: todo-app.business
+      rules:
+        - alert: NoTasksCreatedRecently
+          expr: |
+            sum(increase(todo_tasks_created_total[1h])) == 0
+          for: 2h
+          labels:
+            severity: info
+          annotations:
+            summary: "No tasks created recently"
+            description: "No tasks have been created in the last 2 hours. This might indicate user engagement issues."
+
+        - alert: HighReminderLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(todo_reminder_delivery_latency_seconds_bucket[5m])) by (le)) > 60
+          for: 5m
+          labels:
+            severity: warning
+            service: todo-backend
+          annotations:
+            summary: "High reminder delivery latency"
+            description: "P95 reminder delivery latency is {{ $value | humanizeDuration }} (threshold: 60s)"

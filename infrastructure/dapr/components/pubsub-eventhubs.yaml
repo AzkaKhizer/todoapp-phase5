@@ -1,0 +1,84 @@
+# =============================================================================
+# Dapr Pub/Sub Component - Azure Event Hubs
+# =============================================================================
+# This component configures Dapr to use Azure Event Hubs as the pub/sub broker.
+# Event Hubs provides Kafka-compatible event streaming in Azure.
+#
+# Prerequisites:
+# - Azure Event Hubs namespace created
+# - Connection string stored in Kubernetes secret or Key Vault
+#
+# Usage: Deploy to Kubernetes with: kubectl apply -f pubsub-eventhubs.yaml
+# =============================================================================
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+  namespace: todo-app
+spec:
+  type: pubsub.azure.eventhubs
+  version: v1
+  metadata:
+    # Connection string from Kubernetes secret
+    - name: connectionString
+      secretKeyRef:
+        name: todo-app-secrets
+        key: EVENTHUB_CONNECTION
+
+    # Consumer group for this application
+    - name: consumerGroup
+      value: "todo-backend"
+
+    # Enable bulk subscribe for better performance
+    - name: enableBulkSubscribe
+      value: "true"
+
+    # Maximum batch size for bulk subscribe
+    - name: maxBulkSubCount
+      value: "100"
+
+    # Maximum wait time for batching (milliseconds)
+    - name: maxBulkSubAwaitDurationMs
+      value: "1000"
+
+    # Storage account for checkpointing (optional, uses in-memory if not set)
+    # - name: storageAccountName
+    #   value: "todoappstorage"
+    # - name: storageAccountKey
+    #   secretKeyRef:
+    #     name: azure-storage-secrets
+    #     key: STORAGE_ACCOUNT_KEY
+    # - name: storageContainerName
+    #   value: "eventhubs-checkpoints"
+
+# Scopes limit which applications can use this component
+auth:
+  secretStore: kubernetes
+
+scopes:
+  - todo-backend
+
+---
+# =============================================================================
+# Alternative: Using Azure Key Vault for secrets
+# =============================================================================
+# Uncomment this section if using Azure Key Vault instead of Kubernetes secrets
+
+# apiVersion: dapr.io/v1alpha1
+# kind: Component
+# metadata:
+#   name: kafka-pubsub
+#   namespace: todo-app
+# spec:
+#   type: pubsub.azure.eventhubs
+#   version: v1
+#   metadata:
+#     - name: connectionString
+#       secretKeyRef:
+#         name: eventhub-connection-string
+#         key: eventhub-connection-string
+# auth:
+#   secretStore: azure-keyvault
+# scopes:
+#   - todo-backend

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: todo-backend-v2
+description: Todo Backend API with Dapr integration for event-driven architecture
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+keywords:
+  - todo
+  - fastapi
+  - dapr
+  - kafka
+maintainers:
+  - name: Todo Team
+dependencies: []

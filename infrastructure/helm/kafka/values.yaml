@@ -1,0 +1,71 @@
+# Kafka (Redpanda) Helm values for local development
+# Using Redpanda as a lightweight, Kafka-compatible message broker
+
+# Redpanda chart: https://github.com/redpanda-data/helm-charts
+
+# Number of broker replicas (1 for local dev, 3 for production)
+statefulset:
+  replicas: 1
+
+# Resource allocation
+resources:
+  cpu:
+    cores: 1
+  memory:
+    container:
+      max: 2Gi
+    redpanda:
+      memory: 1Gi
+      reserveMemory: 200Mi
+
+# Storage configuration
+storage:
+  persistentVolume:
+    enabled: true
+    size: 10Gi
+    storageClass: ""  # Use default storage class
+
+# Disable external access for local development
+external:
+  enabled: false
+
+# Disable authentication for local development
+auth:
+  sasl:
+    enabled: false
+
+# Disable TLS for local development
+tls:
+  enabled: false
+
+# Kafka listeners configuration
+listeners:
+  kafka:
+    port: 9092
+  admin:
+    port: 9644
+  schemaRegistry:
+    port: 8081
+
+# Console configuration (optional web UI)
+console:
+  enabled: false
+
+# Monitoring
+monitoring:
+  enabled: false
+
+# Tuning for local development
+tuning:
+  tune_aio_events: false
+  tune_clocksource: false
+  tune_ballast_file: false
+
+# Additional configuration
+config:
+  cluster:
+    # Auto-create topics when producers send messages
+    auto_create_topics_enabled: true
+  # Default topic configuration
+  default_topic_partitions: 3
+  default_topic_replications: 1

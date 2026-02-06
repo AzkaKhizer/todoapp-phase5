@@ -1,15 +1,20 @@
 """Task endpoints for CRUD operations."""
 
 import uuid
+from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
 from app.dependencies.auth import get_current_user_id
+from app.models.task import TaskPriority
 from app.schemas.auth import MessageResponse
 from app.schemas.task import (
+    PaginationInfo,
     TaskCreate,
+    TaskFilterParams,
     TaskListResponse,
     TaskPatch,
     TaskResponse,
@@ -22,20 +27,63 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 @router.get("", response_model=TaskListResponse)
 async def list_tasks(
-    limit: int = Query(default=100, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
+    page: int = Query(default=1, ge=1, description="Page number"),
+    limit: int = Query(default=20, ge=1, le=100, description="Items per page"),
+    search: str | None = Query(default=None, description="Full-text search on title/description"),
+    priority: str | None = Query(default=None, description="Filter by priority (comma-separated: low,medium,high,urgent)"),
+    due_before: datetime | None = Query(default=None, description="Tasks due before this date (ISO 8601)"),
+    due_after: datetime | None = Query(default=None, description="Tasks due after this date (ISO 8601)"),
+    tags: str | None = Query(default=None, description="Filter by tag names (comma-separated)"),
+    is_complete: bool | None = Query(default=None, description="Filter by completion status"),
+    sort_by: Literal["due_date", "priority", "created_at", "title"] = Query(default="created_at", description="Sort field"),
+    sort_order: Literal["asc", "desc"] = Query(default="desc", description="Sort direction"),
+    include_overdue: bool = Query(default=True, description="Include overdue indicator in response"),
     user_id: str = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> TaskListResponse:
-    """List all tasks for the current user."""
-    tasks, total = await task_service.get_tasks(
-        session, user_id, limit, offset
+    """List tasks with filtering, sorting, and pagination."""
+    # Parse comma-separated priority values
+    priority_list: list[TaskPriority] | None = None
+    if priority:
+        priority_list = [TaskPriority(p.strip()) for p in priority.split(",")]
+
+    # Parse comma-separated tag names
+    tags_list: list[str] | None = None
+    if tags:
+        tags_list = [t.strip() for t in tags.split(",")]
+
+    # Build filter params
+    filters = TaskFilterParams(
+        search=search,
+        priority=priority_list,
+        due_before=due_before,
+        due_after=due_after,
+        tags=tags_list,
+        is_complete=is_complete,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        include_overdue=include_overdue,
     )
+
+    tasks, total = await task_service.get_tasks(session, user_id, filters, page, limit)
+
+    # Build task responses with details
+    task_responses = []
+    for task in tasks:
+        response_dict = await task_service.build_task_response(session, task)
+        task_responses.append(TaskResponse(**response_dict))
+
+    # Calculate pagination
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+
     return TaskListResponse(
-        tasks=[TaskResponse.model_validate(t) for t in tasks],
-        total=total,
-        limit=limit,
-        offset=offset,
+        data=task_responses,
+        pagination=PaginationInfo(
+            page=page,
+            limit=limit,
+            total_items=total,
+            total_pages=total_pages,
+        ),
     )
 
 
